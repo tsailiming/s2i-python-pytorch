@@ -1,0 +1,36 @@
+Introduction
+------------
+
+This is a demo repostory containing a PyTorch image for data science.
+
+S2I is used to build the following: 
+
+1. Base Image 
+1. Training image for MNIST
+
+Building
+--------
+
+To build the base image with only `Pytorch`
+
+```
+$ s2i build pytorch registry.access.redhat.com/ubi8/python-38:1-34.1599745032 --as-dockerfile=/tmp/pytorch/Dockerfile
+$ cd /tmp/pytorch/ && buildah bud -f . -t pytorch:l.6.0
+```
+
+To build the training imade:
+
+```
+$ s2i build mnist pytorch:l.6.0--as-dockerfile=/tmp/mnist/Dockerfile
+$ cd /tmp/mnist/ && buildah bud -f . -t pytorch-mnist:latest
+```
+
+Usage
+-----
+
+To run the training image via `podman` and an output folder:
+
+```
+podman run -it --rm -v /tmp/model:/tmp/model:Z pytorch-mnist:latest
+```
+
