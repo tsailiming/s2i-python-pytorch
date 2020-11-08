@@ -44,7 +44,7 @@ $ cd /tmp/flask-app/ && buildah bud -f . -t mnist-flask:l.0
 To build the Node.js frontend:
 ```
   $ s2i build . registry.redhat.io/ubi8/nodejs-14 --as-dockerfile=/tmp/mnist-draw/Dockerfile
-  $ cd /tmp/mnist-draw/ && buildah bud -f . -t mnist-draw:1.0)
+  $ cd /tmp/mnist-draw/ && buildah bud -f . -t mnist-draw:1.0
 ```
 
 Training
