@@ -73,7 +73,8 @@ $ podman run -it --rm -p5000:5000 localhost/mnist-flask:1.0
 Credit
 -----
 
-This repository is adopted from the following
+This repository is adopted from the following:
+
 * https://github.com/rhammell/mnist-draw
 * https://github.com/hsh2438/mnist_serving_pytorch_flask
 * https://github.com/sleepokay/mnist-flask-app
