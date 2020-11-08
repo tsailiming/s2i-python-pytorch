@@ -1,12 +1,14 @@
 Introduction
 ------------
 
-This is a demo repository for my Medium articles containing a PyTorch image for data science.
+This is a demo repository for my blog series for Data Science on Medium.
 
-Part 1:
-Part 2:
-Part 3: 
+* https://medium.com/@tsai.liming/part-1-why-containers-for-data-science-c5f19c3a5b16[Part 1: Why Containers for Data Science]
+* https://medium.com/@tsai.liming/part-2-building-container-images-for-data-science-858954d1c98d[Part 2: Building Container Images for Data Science]
+* Part 3: Deploying your Data Science Containers to Kubernetes (Upcoming)
 
+S2I
+---
 S2I is used to build the following: 
 
 1. Base Image 
