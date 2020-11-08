@@ -70,6 +70,11 @@ $ podman run -it --rm -p8080:8080 -e MNIST_SERVER=http://myserver.local:5000 loc
 $ podman run -it --rm -p5000:5000 localhost/mnist-flask:1.0
 ```
 
+The images are available from quay.io too:
+
+* https://quay.io/repository/ltsai/mnist-flask[quay.io/ltsai/mnist-flask]
+* https://quay.io/repository/ltsai/mnist-draw[quay.io/ltsai/mnist-draw]
+
 Credit
 -----
 
