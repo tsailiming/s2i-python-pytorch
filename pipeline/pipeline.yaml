@@ -19,6 +19,16 @@
 #     image: registry.redhat.io/ubi8/ubi-minimal
 #     script: echo "$(params.value)"
 ---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-mnist
+spec:
+  params:
+    - name: url
+      value: https://github.com/tsailiming/s2i-python-pytorch
+  type: git
+---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
