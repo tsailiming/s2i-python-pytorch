@@ -18,7 +18,8 @@ Update the following files:
 
 [source, bash]
 ----
-$ oc create -f pipeline/pipline.yaml
+$ oc new-project pipeline
+$ oc create -f pipeline/pipline.yaml -n pipeline
 ----
 
 The pipeline consists of the following tasks:
