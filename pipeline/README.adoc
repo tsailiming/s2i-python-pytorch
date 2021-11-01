@@ -1,0 +1,29 @@
+= Introduction
+
+This creates a Tekton pipeline and integrates with MLflow.
+
+== Configuration
+
+The training code will upload the experiemnent statistic to MLflow.
+
+You can deploy MLflow from this https://github.com/tsailiming/mlflow-s2i/tree/master/examples[repo].
+
+Update the following files:
+
+* `minio-secrets.yaml`: S3 bucket credentials
+* `mlflow-config.yaml`: MLFlow and S3 URL
+* `mlflow-secrets.yaml`: MLFlow username/password
+
+== Pipeline Creation
+
+[source, bash]
+----
+$ oc create -f pipeline/pipline.yaml
+----
+
+The pipeline consists of the following tasks:
+
+* Clean workspace
+* Training
+* Building the flask backend image
+* Deploying the mnist frontend and backend
