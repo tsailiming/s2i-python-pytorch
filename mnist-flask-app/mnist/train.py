@@ -8,6 +8,9 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
+import mlflow
+import mlflow.pytorch
+
 from net import Net
 
 def train(args, model, device, train_loader, optimizer, epoch):
@@ -23,6 +26,9 @@ def train(args, model, device, train_loader, optimizer, epoch):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
+
+            mlflow.log_metric("loss", loss.item())
+            
             if args.dry_run:
                 break
 
@@ -45,6 +51,8 @@ def test(model, device, test_loader):
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
+    mlflow.log_metric("avg_loss", test_loss)
+    mlflow.log_metric("accuracy", 100. * correct / len(test_loader.dataset))
 
 def main():
     # Training settings
@@ -71,6 +79,8 @@ def main():
                         help='For Saving the current Model')
     parser.add_argument('--model-path', type=str, default='/tmp',
                         help='Path to save the current Model')
+    parser.add_argument('--data-path', type=str, default='../data',
+                        help='Path to save data')
 
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -86,13 +96,20 @@ def main():
                        'shuffle': True},
                      )
 
+    mlflow.log_param("batch_size", args.batch_size)
+    mlflow.log_param("test_batch_size", args.test_batch_size)
+    mlflow.log_param("epochs", args.epochs)
+    mlflow.log_param("learning_rate", args.lr)
+
     transform=transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
-    dataset1 = datasets.MNIST('../data', train=True, download=True,
+
+    data_path = args.data_path
+    dataset1 = datasets.MNIST(data_path, train=True, download=True,
                        transform=transform)
-    dataset2 = datasets.MNIST('../data', train=False,
+    dataset2 = datasets.MNIST(data_path, train=False,
                        transform=transform)
     train_loader = torch.utils.data.DataLoader(dataset1,**kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **kwargs)
@@ -111,6 +128,8 @@ def main():
         torch.save(model.state_dict(), save_model_to)
         print('Model saved to {}'.format(save_model_to)) 
 
+        mlflow.pytorch.log_model(pytorch_model=model, artifact_path="torch-cnn-model")
+        print('Model saved to {}'.format(mlflow.get_artifact_uri())) 
 
 if __name__ == '__main__':
     main()

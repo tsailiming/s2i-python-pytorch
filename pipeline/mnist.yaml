@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mnist-flask
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 5000
+  selector:
+    app: mnist-flask
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mnist-flask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mnist-flask
+  template:
+    metadata:
+      labels:
+        app: mnist-flask
+    spec:
+      containers:
+      - name: mnist-flask
+        image: _MNIST_FLASK_URI_
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mnist-draw
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: mnist-draw
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mnist-draw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mnist-draw
+  template:
+    metadata:
+      labels:
+        app: mnist-draw
+    spec:
+      containers:
+      - name: mnist-draw
+        image: quay.io/ltsai/mnist-draw:1.0
+        ports:
+        - containerPort: 8080
+        env:
+          - name: MNIST_SERVER
+            value: _MNIST_FLASK_URL_
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: mnist-draw
+spec:
+  to:
+    kind: Service
+    name: mnist-draw
+    weight: 100
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+  wildcardPolicy: None

@@ -1,0 +1,441 @@
+# ---
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: echo-params
+#   namespace: pipeline
+# spec:
+#   resources:
+#     inputs:
+#     - name: source
+#       type: git
+#   workspaces:
+#     - name: workspace
+#       mountPath: /workspace
+#   params:
+#   - name: value
+#   steps:
+#   - name: echo-params
+#     image: registry.redhat.io/ubi8/ubi-minimal
+#     script: echo "$(params.value)"
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-app
+  namespace: pipeline
+spec:
+  workspaces:
+    - name: workspace
+      mountPath: /workspace
+  params:
+    - default: latest
+      description: The OpenShift Version to use
+      name: VERSION
+      type: string
+    - description: Reference of the mnist flask image
+      name: image
+      type: string
+  steps:
+    - image: image-registry.openshift-image-registry.svc:5000/openshift/cli:$(params.VERSION)
+      name: deploy
+      resources: {}
+      script: |
+        #!/bin/bash
+
+        GIT_REV=`cat /workspace/git`
+        echo "GIT REVISION: $GIT_REV"
+
+        oc apply -f /workspace/source/pipeline/mnist-flask-route.yaml
+
+        IMAGE=$(params.image)
+        MNIST_FLASK_URL=`oc get route mnist-flask -o jsonpath='{.spec.host}'`
+
+        sed -i "s#_MNIST_FLASK_URI_#$IMAGE:$GIT_REV#g" /workspace/source/pipeline/mnist.yaml
+        sed -i "s#_MNIST_FLASK_URL_#https://$MNIST_FLASK_URL#g" /workspace/source/pipeline/mnist.yaml
+
+        oc apply -f /workspace/source/pipeline/mnist.yaml
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clean-workspace
+  namespace: pipeline
+spec:  
+  workspaces:
+    - name: workspace
+      mountPath: /workspace
+  steps:
+  - name: clean
+    image: registry.redhat.io/ubi8/ubi-minimal
+    script: |
+      #!/bin/bash
+      rm -rf /workspace/*
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: train
+  namespace: pipeline
+spec:
+  resources:
+    inputs:
+    - name: source
+      type: git
+  workspaces:
+    - name: workspace
+      mountPath: /workspace
+  params:
+    - default: '14'
+      description: 'Number of epochs to train (default: 14)'
+      name: epoch
+      type: string
+    - name: extra_args
+      description: Extra args to pass to the training code
+      type: string
+  steps:
+  - name: setup-workspace
+    image: registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:da1aedf0b17f2b9dd2a46edc93ff1c0582989414b902a28cd79bad8a035c9ea4
+    script: |
+      #!/bin/bash
+      
+      GIT_REV=`(cd /workspace/source && git rev-parse --short HEAD)`
+      echo $GIT_REV > /workspace/git
+
+      echo "GIT REVISION: $GIT_REV"
+  - script: |
+      #!/bin/bash
+
+      GIT_REV=`cat /workspace/git`
+      echo "GIT REVISION: $GIT_REV"
+
+      mkdir -p /workspace/model
+      mkdir -p /workspace/data
+
+      pip install -r  /workspace/source/mnist-flask-app/requirements.txt
+
+      echo "Epoch: $(params.epoch)"
+      echo "Extra args: $(params.extra_args)"
+
+      /workspace/source/mnist-flask-app/mnist/train.py \
+      --data-path /workspace/data \
+      --save-model \
+      --model-path /workspace/model \
+      --epoch $(params.epoch) \
+      $(params.extra_args)
+
+    image: registry.redhat.io/ubi8/python-36
+    name: train
+    env:
+    #- name: MLFLOW_EXPERIMENT_NAME
+    #  value: 
+    - name: PIPELINERUN
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.labels['tekton.dev/pipelineRun']
+    envFrom:
+    - secretRef:
+        name: mlflow-secret
+    - secretRef:
+        name: minio-secret
+    - configMapRef:
+        name: mlflow-config
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: s2i-python-3
+  namespace: pipeline
+spec:
+  workspaces:
+    - name: workspace
+      mountPath: /workspace      
+  params:
+  # - default: "6"
+  #   description: The minor version of the python 3
+  #   name: MINOR_VERSION
+  #   type: string
+  # - default: .
+  #   description: The location of the path to run s2i from.
+  #   name: PATH_CONTEXT
+  #   type: string
+  # - default: "true"
+  #   description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS
+  #     registry)
+  #   name: TLSVERIFY
+  #   type: string
+    - description: Reference of the image buildah will produce.
+      name: IMAGE
+      type: string
+    - default: registry.redhat.io/rhel8/buildah@sha256:99cae35f40c7ec050fed3765b2b27e0b8bbea2aa2da7c16408e2ca13c60ff8ee
+      description: The location of the buildah builder image.
+      name: BUILDER_IMAGE
+      type: string
+    - default: vfs
+      description: Set buildah storage driver
+      name: STORAGE_DRIVER
+      type: string
+    - default: ./Dockerfile
+      description: Path to the Dockerfile to build.
+      name: DOCKERFILE
+      type: string
+    - default: .
+      description: Path to the directory to use as context.
+      name: CONTEXT
+      type: string
+    - default: 'true'
+      description: >-
+        Verify the TLS on the registry endpoint (for push/pull to a non-TLS
+        registry)
+      name: TLSVERIFY
+      type: string
+    - default: oci
+      description: 'The format of the built container, oci or docker'
+      name: FORMAT
+      type: string
+    - default: ''
+      description: Extra parameters passed for the build command when building images.
+      name: BUILD_EXTRA_ARGS
+      type: string
+    - default: ''
+      description: Extra parameters passed for the push command when pushing images.
+      name: PUSH_EXTRA_ARGS
+      type: string
+  results:
+    - description: Digest of the image just built.
+      name: IMAGE_DIGEST      
+  steps:
+  # - script: |
+  #     #!/bin/bash
+  #     s2i build $(params.PATH_CONTEXT) \
+  #     registry.access.redhat.com/ubi8/python-3$(params.MINOR_VERSION) \
+  #     --as-dockerfile /gen-source/Dockerfile.gen
+
+  #     cp -av /workspace/model /gen-source/upload/src/        
+  #   image: registry.redhat.io/ocp-tools-43-tech-preview/source-to-image-rhel8
+  #   name: generate
+  #   resources: 
+  #     requests:
+  #       cpu: 500m
+  #       memory: 1Gi                  
+  #     limits:
+  #       cpu: 2
+  #       memory: 2Gi
+  #   volumeMounts:
+  #   - mountPath: /gen-source
+  #     name: gen-source
+  - script: | 
+      #/bin/bash
+      
+      GIT_REV=`cat /workspace/git`
+      echo "GIT REVISION: $GIT_REV"
+
+      cp /workspace/model/* /workspace/source/mnist-flask-app/model
+
+      #. /workspace/source/src/seldon/config.sh
+      #IMAGE_URL=nexus-docker-labs-nexus.{{route_subdomain}}/{{user}}/$IMAGE_NAME:$GIT_REV
+
+      #buildah bud --format=docker --tls-verify=$(params.TLSVERIFY) \
+      #--layers -f /gen-source/Dockerfile.gen \
+      #-t $IMAGE_URL .
+
+      buildah --storage-driver=$(params.STORAGE_DRIVER) bud \
+          $(params.BUILD_EXTRA_ARGS) --format=$(params.FORMAT) \
+          --tls-verify=$(params.TLSVERIFY) --no-cache \
+          -f $(params.DOCKERFILE) -t $(params.IMAGE):$GIT_REV $(params.CONTEXT)
+
+    image: registry.redhat.io/rhel8/buildah
+    name: build
+    # resources:
+    #   requests:
+    #     cpu: 500m
+    #     memory: 2Gi                  
+    #   limits:
+    #     cpu: 2
+    #     memory: 3Gi
+    #securityContext:
+    #  privileged: true
+    volumeMounts:
+    - mountPath: /var/lib/containers
+      name: varlibcontainers
+    workingDir:  /workspace/source
+    #- mountPath: /gen-source
+    #  name: gen-source
+  - script: | 
+      #!/bin/bash
+
+      GIT_REV=`cat /workspace/git`
+      echo "GIT REVISION: $GIT_REV"
+      
+      buildah --storage-driver=$(params.STORAGE_DRIVER) push \
+          $(params.PUSH_EXTRA_ARGS) --tls-verify=$(params.TLSVERIFY) \
+          --digestfile /workspace/image-digest $(params.IMAGE):$GIT_REV \
+          docker://$(params.IMAGE):$GIT_REV
+
+    image: registry.redhat.io/rhel8/buildah
+    name: push
+    # resources: 
+    #   requests:
+    #     cpu: 500m
+    #     memory: 1Gi                  
+    #   limits:
+    #     cpu: 2
+    #     memory: 2Gi
+    #securityContext:
+    #  privileged: true
+    volumeMounts:
+    - mountPath: /var/lib/containers
+      name: varlibcontainers
+    workingDir: /workspace/source
+  - image: $(params.BUILDER_IMAGE)
+    name: digest-to-results
+    resources: {}
+    script: >-
+      cat /workspace/image-digest | tee
+      /tekton/results/IMAGE_DIGEST
+  volumes:
+  - emptyDir: {}
+    name: varlibcontainers
+  #- emptyDir: {}
+  #  name: gen-source
+  
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: pipeline
+  namespace: pipeline
+spec:
+  params:
+  # - name: gitref
+  #   type: string
+  #   default: default
+  # - name: gitrevision
+  #   type: string
+  #   default: default
+  # - name: gitrepositoryurl
+  #   type: string
+  #   default: default
+  # - name: contenttype
+  #   type: string
+  #   default: default   
+  - default: '14'
+    name: epoch
+    description: 'Number of epochs to train (default: 14)'
+    type: string
+  - name: train_extra_args
+    type: string 
+    default: '--dry-run'
+    description: Extra args to pass to the training code
+  - default: ./mnist-flask-app/Dockerfile
+    description: Path to the Dockerfile to build.
+    name: dockerfile
+    type: string 
+  - name: image
+    description: Reference of the image will produce. 
+    default: image-registry.openshift-image-registry.svc:5000/pipeline/minist-flask
+    type: string
+  resources:
+  - name: source
+    type: git
+  workspaces:
+  - name: workspace
+  tasks:
+  - name: clean-workspace
+    workspaces:
+      - name: workspace
+        workspace: workspace
+    taskRef:
+      kind: Task
+      name: clean-workspace
+  # - name: echo-gitref
+  #   taskRef:
+  #     name: echo-params
+  #   runAfter:
+  #     - clean-workspace
+  #   params:
+  #     - name: value
+  #       value: $(params.gitref)
+  # - name: echo-gitrevision
+  #   taskRef:
+  #     name: echo-params
+  #   runAfter:
+  #     - echo-gitref
+  #   params:
+  #     - name: value
+  #       value: $(params.gitrevision)
+  # - name: echo-gitrepositoryurl
+  #   taskRef:
+  #     name: echo-params
+  #   runAfter:
+  #     - echo-gitrevision
+  #   params:
+  #     - name: value
+  #       value: $(params.gitrepositoryurl)
+  # - name: echo-gitrepositoryurl
+  #   taskRef:
+  #     name: echo-params
+  #   runAfter:
+  #     - clean-workspace
+  #   params:
+  #     - name: value
+  #       value: $(resources.inputs.source.path)
+  #   resources:
+  #     inputs:
+  #     - name: source
+  #       resource: source
+  # - name: echo-contenttype
+  #   taskRef:
+  #     name: echo-params
+  #   runAfter:
+  #     - echo-gitrepositoryurl
+  #   params:
+  #     - name: value
+  #       value: $(params.contenttype)        
+  - name: train
+    resources:
+      inputs:
+      - name: source
+        resource: source
+    workspaces:
+      - name: workspace
+        workspace: workspace
+    taskRef:
+      kind: Task
+      name: train
+    runAfter:
+      -  clean-workspace
+    params:
+    - name: epoch
+      value: $(params.epoch)
+    - name: extra_args      
+      value: $(params.train_extra_args)
+  - name: build-model-image
+    workspaces:
+      - name: workspace
+        workspace: workspace
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    - name: DOCKERFILE
+      value: $(params.dockerfile)  
+    - name: IMAGE
+      value: $(params.image)
+    runAfter:
+    - train
+    taskRef:
+      kind: Task
+      name: s2i-python-3
+  - name: deploy-app
+    workspaces:
+      - name: workspace
+        workspace: workspace
+    runAfter:
+    - build-model-image
+    taskRef:
+      kind: Task
+      name: deploy-app
+    params:
+    - name: image
+      value: $(params.image)
+    

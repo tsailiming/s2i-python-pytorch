@@ -41,6 +41,8 @@ $ cp /tmp/model/mnist_cnn.pt /tmp/flask-app/upload/src/model/
 $ cd /tmp/flask-app/ && buildah bud -f . -t mnist-flask:l.0
 ```
 
+Alternatively, you can just build with the provided Dockerfile.
+
 To build the Node.js frontend:
 ```
   $ s2i build . registry.redhat.io/ubi8/nodejs-14 --as-dockerfile=/tmp/mnist-draw/Dockerfile
@@ -53,7 +55,7 @@ Training
 To run the training image via `podman` and an output folder:
 
 ```
-$ podman run -it --rm -v /tmp/model:/tmp/model:Z pytorch-mnist:latest
+$ podman run -it --rm -v /tmp/model:/model:Z pytorch-mnist:latest
 ```
 
 MNIST Draw

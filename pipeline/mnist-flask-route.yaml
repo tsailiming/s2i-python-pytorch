@@ -1,0 +1,14 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: mnist-flask  
+spec:
+  to:
+    kind: Service
+    name: mnist-flask
+    weight: 100
+  port:
+    targetPort: 5000
+  tls:
+    termination: edge
+  wildcardPolicy: None
