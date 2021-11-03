@@ -119,13 +119,13 @@ spec:
       GIT_REV=`cat /workspace/git`
       echo "GIT REVISION: $GIT_REV"
 
+      echo "Epoch: $(params.epoch)"
+      echo "Extra args: $(params.extra_args)"
+
       mkdir -p /workspace/model
       mkdir -p /workspace/data
 
       pip install -r  /workspace/source/mnist-flask-app/requirements.txt
-
-      echo "Epoch: $(params.epoch)"
-      echo "Extra args: $(params.extra_args)"
 
       /workspace/source/mnist-flask-app/mnist/train.py \
       --data-path /workspace/data \
