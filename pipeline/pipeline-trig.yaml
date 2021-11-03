@@ -84,7 +84,11 @@ spec:
       - name: message
         value: $(tt.params.message)
       - name: contenttype
-        value: $(tt.params.contenttype)
+        value: $(tt.params.contenttype)        
+      - name: epoch
+        value: '14'
+      - name: train_extra_args
+        value: ''
       workspaces:
         - name: workspace
           volumeClaimTemplate:
