@@ -52,7 +52,7 @@ spec:
   - name: gitrevision
     value: $(body.head_commit.id)
   - name: gitrepositoryurl
-    value: $(body.repository.url)
+    value: $(body.repository.git_http_url)
   - name: contenttype
     value: $(header.Content-Type)
 ---
