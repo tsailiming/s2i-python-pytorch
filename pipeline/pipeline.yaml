@@ -448,4 +448,30 @@ spec:
     params:
     - name: image
       value: $(params.image)
-    
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-secret
+type: Opaque
+data:
+  AWS_ACCESS_KEY_ID: bWxmbG93 #mlflow
+  AWS_SECRET_ACCESS_KEY: dFQ4RnFUVlQzRVA4Rm1ndg== #tT8FqTVT3EP8Fmgv
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mlflow-secret
+type: Opaque
+data:
+  # Nginx basic auth
+  MLFLOW_TRACKING_USERNAME: bWxmbG93 #mlflow
+  MLFLOW_TRACKING_PASSWORD: Y3paN0JtTDdlS3FzVGNDbQ== #czZ7BmL7eKqsTcCm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlflow-config
+data:
+  MLFLOW_S3_ENDPOINT_URL: https://s3-minio.apps.cluster-435b.435b.sandbox766.opentlc.com
+  MLFLOW_TRACKING_URI: https://mlflow-mlflow.apps.cluster-435b.435b.sandbox766.opentlc.com
