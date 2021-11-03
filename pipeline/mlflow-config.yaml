@@ -1,8 +1,0 @@
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mlflow-config
-data:
-  MLFLOW_S3_ENDPOINT_URL: https://s3-minio.apps.cluster-435b.435b.sandbox766.opentlc.com
-  MLFLOW_TRACKING_URI: https://mlflow-mlflow.apps.cluster-435b.435b.sandbox766.opentlc.com
