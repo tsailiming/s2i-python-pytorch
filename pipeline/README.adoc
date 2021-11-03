@@ -37,7 +37,7 @@ The webhook token can be found in `gitlab-secret`.
 
 [source, bash]
 ----
-$ oc create -f pipeline-trig.yaml
+$ oc create -f pipeline-trig.yaml -n pipeline
 ----
 
 
