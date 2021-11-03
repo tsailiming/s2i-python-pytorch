@@ -10,11 +10,11 @@ You can deploy MLflow from this https://github.com/tsailiming/mlflow-s2i/tree/ma
 
 The training code will upload the experiemnent statistics to MLflow.
 
-Update the following files:
+Update the following configuration:
 
-* `minio-secrets.yaml`: S3 bucket credentials
-* `mlflow-config.yaml`: MLFlow and S3 URL
-* `mlflow-secrets.yaml`: MLFlow username/password
+* `minio-secrets`: S3 bucket credentials
+* `mlflow-config`: MLFlow and S3 URL
+* `mlflow-secrets`: MLFlow username/password
 
 == Pipeline creation
 
@@ -31,7 +31,7 @@ The pipeline consists of the following tasks:
 * Building the flask backend image
 * Deploying the mnist frontend and backend
 
-== Gitlab Pipeline trigger
+== GitLab pipeline trigger
 
 The webhook token can be found in `gitlab-secret`.
 
